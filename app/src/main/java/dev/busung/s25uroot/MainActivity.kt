@@ -1452,6 +1452,7 @@ private fun RootApp(
                                 when (universal.tier) {
                                     PayloadTier.Device -> R.string.universal_choice_device
                                     PayloadTier.Generic -> R.string.universal_choice_generic
+                                    PayloadTier.Susfs -> R.string.universal_choice_susfs
                                 },
                             ),
                         )
@@ -7939,11 +7940,22 @@ private fun UniversalPayloadRow(
                         when (choice.tier) {
                             PayloadTier.Device -> R.string.universal_choice_device
                             PayloadTier.Generic -> R.string.universal_choice_generic
+                            PayloadTier.Susfs -> R.string.universal_choice_susfs
                         },
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // The hiding row says what it is instead of only where it comes from, because the two rows
+                // above and below it are the same flavour and the same daemon - the suffix is the only thing
+                // on the screen that distinguishes them, and "SUSFS" is not a word the sheet has used before.
+                if (choice.tier == PayloadTier.Susfs) {
+                    Text(
+                        stringResource(R.string.universal_choice_susfs_note),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (choice.tier == PayloadTier.Device && entry != null) {
                     Text(
                         stringResource(R.string.universal_choice_stages, entry.displayName),

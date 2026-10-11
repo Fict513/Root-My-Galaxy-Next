@@ -8,7 +8,7 @@ package dev.busung.s25uroot
  * thing to learn next to the install card, and one of its two questions ("universal root") made a claim about
  * the phone that is not true: this chain needs a payload like any other, it just does not need a *helper*. So
  * it is a row here instead the same list, the same controls, the same Next and both of the questions the
- * card asked are answered by the row itself: one row per KernelSU per [PayloadTier], which is six.
+ * card asked are answered by the row itself: one row per KernelSU per [PayloadTier], which is nine.
  *
  * ## Why the universal rows are never narrowed by the device toggle
  *

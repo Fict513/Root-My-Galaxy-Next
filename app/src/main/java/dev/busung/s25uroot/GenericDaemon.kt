@@ -44,7 +44,7 @@ data class GenericDaemon(
      *
      * A property of the artifact, not of the file it was read from: a daemon that carries susfs roots the
      * phone exactly like one that does not, and additionally hides - so where both are published for a
-     * KMI, this is what decides which of them `covering()` offers.
+     * KMI, this is what lets `covering()` hand each of the two generic rows its own build.
      */
     val susfs: Boolean = false,
     val sourceId: String = "",
@@ -147,7 +147,26 @@ data class GenericDaemonFeed(
  *
  * A phone whose KMI no entry covers gets null and is told which KMIs there were, rather than being handed
  * a daemon that would fail at `finit_module`.
+ *
+ * [hiding] is which of the two generic tiers is asking, and the two are not symmetrical:
+ *
+ * - the plain tier takes a daemon that does not carry the hiding support, and falls back to one that does
+ *   when that is all a source publishes for this kernel. The fallback is not a silent upgrade of the run -
+ *   a hiding daemon roots the phone exactly like a plain one, so it cannot lead somewhere the row did not
+ *   promise - and it is what keeps a phone whose source publishes only the second feed rootable at all.
+ * - the hiding tier takes **only** a daemon that carries the support. Handing it a plain one would be a row
+ *   saying "susfs" over a run that hides nothing, which is the single thing that row exists to make
+ *   visible, so there is no fallback and the run refuses instead.
  */
-internal fun List<GenericDaemon>.covering(flavor: KernelSuFlavor, kmi: String?): GenericDaemon? =
-    firstOrNull { it.flavor == flavor && it.covers(kmi) && it.susfs }
-        ?: firstOrNull { it.flavor == flavor && it.covers(kmi) }
+internal fun List<GenericDaemon>.covering(
+    flavor: KernelSuFlavor,
+    kmi: String?,
+    hiding: Boolean,
+): GenericDaemon? {
+    val forKernel = filter { it.flavor == flavor && it.covers(kmi) }
+    return if (hiding) {
+        forKernel.firstOrNull { it.susfs }
+    } else {
+        forKernel.firstOrNull { !it.susfs } ?: forKernel.firstOrNull()
+    }
+}
