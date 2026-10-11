@@ -39,6 +39,14 @@ data class GenericDaemon(
     val daemon: RemoteArtifact,
     /** The KernelSU release the daemon was built from, when the feed says. */
     val version: String?,
+    /**
+     * Whether this daemon was built with the hiding tier compiled in, as its feed declares.
+     *
+     * A property of the artifact, not of the file it was read from: a daemon that carries susfs roots the
+     * phone exactly like one that does not, and additionally hides - so where both are published for a
+     * KMI, this is what decides which of them `covering()` offers.
+     */
+    val susfs: Boolean = false,
     val sourceId: String = "",
     val sourceLabel: String = "",
     val sourceCommit: String = "",
@@ -67,6 +75,17 @@ data class GenericDaemonFeed(
     companion object {
         /** Where a payload repository keeps it, beside the manifest it is read from. */
         const val PATH = "support/kernelsu-generic.json"
+
+        /**
+         * The same tier, built with the hiding support compiled in.
+         *
+         * A second file rather than more entries in [PATH], and that is upstream's own arrangement, not
+         * this app's: that feed holds one entry per flavour, so a hiding daemon listed there would replace
+         * the plain one for every phone in the KMI. A source that does not publish this file is the normal
+         * case for every repository except the one this fork ships, so a missing file is not a failure -
+         * see `PayloadRepository.loadGenericDaemons()`.
+         */
+        const val SUSFS_PATH = "support/kernelsu-generic-susfs.json"
 
         /** The only shape this build reads. A different one is a feed written for a different app. */
         const val SUPPORTED_SCHEMA = 1
@@ -106,6 +125,9 @@ data class GenericDaemonFeed(
                             kmis = kmis,
                             daemon = daemon.artifact(),
                             version = daemon.declaredVersion(),
+                            // Declared by the feed rather than inferred from which file it was read out of,
+                            // because a source is free to publish the same daemon from either path.
+                            susfs = entry.optBoolean("susfs", false),
                         ),
                     )
                 }
@@ -127,4 +149,5 @@ data class GenericDaemonFeed(
  * a daemon that would fail at `finit_module`.
  */
 internal fun List<GenericDaemon>.covering(flavor: KernelSuFlavor, kmi: String?): GenericDaemon? =
-    firstOrNull { it.flavor == flavor && it.covers(kmi) }
+    firstOrNull { it.flavor == flavor && it.covers(kmi) && it.susfs }
+        ?: firstOrNull { it.flavor == flavor && it.covers(kmi) }
