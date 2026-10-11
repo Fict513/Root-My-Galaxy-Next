@@ -7422,7 +7422,20 @@ private fun TargetSelectionSheet(
     } else {
         null
     }
-    val rows = remember(catalog.profiles, showOnlyMyDevice, device, query, flavorFilter, deviceCoverage) {
+    // The hiding tier's own version of that, and it comes down with the catalog read rather than from a
+    // resolution here: its feed is a second file the sources publish, and the read that answers for it is
+    // the ViewModel's. Null is "not read" as above, and the rows are listed on it - see
+    // [visibleUniversalChoices].
+    val susfsCoverage = if (catalogRead) catalog.susfsCoverage else null
+    val rows = remember(
+        catalog.profiles,
+        showOnlyMyDevice,
+        device,
+        query,
+        flavorFilter,
+        deviceCoverage,
+        susfsCoverage,
+    ) {
         payloadRows(
             profiles = catalog.profiles,
             device = device,
@@ -7430,6 +7443,7 @@ private fun TargetSelectionSheet(
             query = query,
             flavor = flavorFilter,
             deviceCoverage = deviceCoverage,
+            susfsCoverage = susfsCoverage,
         )
     }
     val selected = rows.all.firstOrNull { it.key == selectedKey }

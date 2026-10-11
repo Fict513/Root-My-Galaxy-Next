@@ -170,3 +170,16 @@ internal fun List<GenericDaemon>.covering(
         forKernel.firstOrNull { !it.susfs } ?: forKernel.firstOrNull()
     }
 }
+
+/**
+ * The flavours the read sources publish a hiding daemon for, of the ones that carry a module for [kmi].
+ *
+ * The payload sheet's question about the hiding tier, and answered with the same call the run makes
+ * ([covering]) rather than a comparison of its own: a flavour left out of this set is a flavour whose row
+ * could only lead to the run's own refusal, which is the tap the row exists to save.
+ *
+ * A null [kmi] covers nothing, so the answer is empty and the caller has to tell that from a read it never
+ * made - the reading itself, and what an unread kernel means, belong to whoever did the reading.
+ */
+internal fun List<GenericDaemon>.hidingFlavorsFor(kmi: String?): Set<KernelSuFlavor> =
+    KernelSuFlavor.entries.filterTo(mutableSetOf()) { covering(it, kmi, hiding = true) != null }

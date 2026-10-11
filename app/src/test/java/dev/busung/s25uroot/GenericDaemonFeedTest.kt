@@ -140,6 +140,25 @@ class GenericDaemonFeedTest {
     }
 
     @Test
+    fun `only the flavours with a hiding daemon for this kernel are covered`() {
+        // What the sheet asks, one tier up from `covering` and with the same rule behind it: the flavour whose
+        // hiding daemon carries this KMI counts, the one whose daemon carries another kernel does not, and
+        // neither does a flavour with no hiding daemon at all.
+        val daemons = GenericDaemonFeed.parse(
+            feed(
+                entry("kernelsu-next", susfs = true),
+                entry("kernelsu", kmis = """["android14-6.1"]""", susfs = true),
+                entry("resukisu"),
+            ).toByteArray(),
+        ).entries
+
+        assertEquals(setOf(KernelSuFlavor.KernelSuNext), daemons.hidingFlavorsFor("android15-6.6"))
+        // A kernel that could not be read covers nothing, and the caller has to tell that from a feed nobody
+        // published: the answer is empty either way, and only the caller knows whether it did the reading.
+        assertEquals(emptySet<KernelSuFlavor>(), daemons.hidingFlavorsFor(null))
+    }
+
+    @Test
     fun `the KMI decides, and a miss is a miss`() {
         val daemons = GenericDaemonFeed.parse(
             feed(entry("kernelsu"), entry("resukisu", kmis = """["android14-6.1"]"""))

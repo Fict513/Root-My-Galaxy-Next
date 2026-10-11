@@ -52,7 +52,8 @@ class PayloadChoiceTest {
         query: String = "",
         flavor: KernelSuFlavor? = null,
         deviceCoverage: Set<KernelSuFlavor>? = null,
-    ) = payloadRows(profiles, device, fitsDeviceOnly, query, flavor, deviceCoverage)
+        susfsCoverage: Set<KernelSuFlavor>? = null,
+    ) = payloadRows(profiles, device, fitsDeviceOnly, query, flavor, deviceCoverage, susfsCoverage)
 
     @Test
     fun `the device toggle narrows the payloads and never the universal rows`() {
@@ -128,6 +129,48 @@ class PayloadChoiceTest {
         assertEquals(9, rows(deviceCoverage = null).universal.size)
         assertEquals(9, rows(profiles = emptyList(), deviceCoverage = null).universal.size)
         assertEquals(6, rows(profiles = emptyList(), deviceCoverage = emptySet()).universal.size)
+    }
+
+    @Test
+    fun `a hiding row is listed only for a flavour the sources publish a hiding daemon for`() {
+        // The third tier's own feed, read by the sheet's caller and handed in here. A flavour the sources
+        // publish no hiding daemon for is a row whose only content is a sentence the run would produce after
+        // the tap, so the sheet leaves it out - and the generic row beside it is what covers that phone.
+        val nextOnly = rows(susfsCoverage = setOf(KernelSuFlavor.KernelSuNext))
+        assertEquals(
+            listOf(
+                KernelSuFlavor.KernelSu to PayloadTier.Device,
+                KernelSuFlavor.KernelSu to PayloadTier.Generic,
+                KernelSuFlavor.KernelSuNext to PayloadTier.Device,
+                KernelSuFlavor.KernelSuNext to PayloadTier.Generic,
+                KernelSuFlavor.KernelSuNext to PayloadTier.Susfs,
+                KernelSuFlavor.ReSukiSU to PayloadTier.Device,
+                KernelSuFlavor.ReSukiSU to PayloadTier.Generic,
+            ),
+            nextOnly.universal.map { it.flavor to it.tier },
+        )
+        // A source publishing no hiding feed at all is every source but this fork's, and that takes the three
+        // rows away - which is the state the sheet used to draw them in.
+        val none = rows(susfsCoverage = emptySet())
+        assertEquals(6, none.universal.size)
+        assertTrue(none.universal.none { it.tier == PayloadTier.Susfs })
+        // An unread feed hides nothing: null is "not known", not "nobody publishes one".
+        assertEquals(9, rows(susfsCoverage = null).universal.size)
+        // The two sets are read from different feeds and decide different tiers, so neither can stand in for
+        // the other: here one flavour is covered by the catalog and a different one by the hiding feed.
+        assertEquals(
+            listOf(
+                KernelSuFlavor.KernelSu to PayloadTier.Device,
+                KernelSuFlavor.KernelSu to PayloadTier.Generic,
+                KernelSuFlavor.KernelSuNext to PayloadTier.Generic,
+                KernelSuFlavor.ReSukiSU to PayloadTier.Generic,
+                KernelSuFlavor.ReSukiSU to PayloadTier.Susfs,
+            ),
+            rows(
+                deviceCoverage = setOf(KernelSuFlavor.KernelSu),
+                susfsCoverage = setOf(KernelSuFlavor.ReSukiSU),
+            ).universal.map { it.flavor to it.tier },
+        )
     }
 
     @Test
