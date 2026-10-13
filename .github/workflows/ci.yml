@@ -50,7 +50,26 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Detect release signing secrets
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${KEYSTORE_BASE64:-}" ] && [ -n "${KEYSTORE_PASSWORD:-}" ] \
+            && [ -n "${KEY_ALIAS:-}" ] && [ -n "${KEY_PASSWORD:-}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release signing secrets are not fully configured. Building debug APK only."
+          fi
+
       - name: Decode signing keystore
+        if: steps.signing.outputs.configured == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -81,9 +100,17 @@ jobs:
         run: ./gradlew testDebugUnitTest --no-daemon
 
       - name: Build APKs
-        run: ./gradlew assembleDebug assembleRelease --no-daemon
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.signing.outputs.configured }}" = "true" ]; then
+            ./gradlew assembleDebug assembleRelease --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
 
       - name: Verify release APK signature
+        if: steps.signing.outputs.configured == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -130,17 +157,22 @@ jobs:
             echo "Could not read appVersionBase from app/build.gradle.kts." >&2
             exit 1
           fi
-          # The run number is in the asset name so two CI downloads of the same version differ.
           mkdir -p ci-release
-          cp app/build/outputs/apk/release/*.apk \
-            "ci-release/RootMyGalaxyNext-${VERSION_NAME}-ci${GITHUB_RUN_NUMBER}.apk"
-          # The debug APK goes out with it, and it is installable over the signed builds because the
-          # debug buildtype is signed with the same key when one is configured (app/build.gradle.kts).
-          cp app/build/outputs/apk/debug/*.apk \
-            "ci-release/RootMyGalaxyNext-${VERSION_NAME}-ci${GITHUB_RUN_NUMBER}-debug.apk"
+          # The run number is in the asset name so two CI downloads of the same version differ.
+          if [ "${{ steps.signing.outputs.configured }}" = "true" ]; then
+            cp app/build/outputs/apk/release/*.apk \
+              "ci-release/RootMyGalaxyNext-${VERSION_NAME}-ci${GITHUB_RUN_NUMBER}.apk"
+            # The debug APK goes out with it, and it is installable over the signed builds because the
+            # debug buildtype is signed with the same key when one is configured (app/build.gradle.kts).
+            cp app/build/outputs/apk/debug/*.apk \
+              "ci-release/RootMyGalaxyNext-${VERSION_NAME}-ci${GITHUB_RUN_NUMBER}-debug.apk"
+          else
+            cp app/build/outputs/apk/debug/*.apk \
+              "ci-release/RootMyGalaxyNext-${VERSION_NAME}-ci${GITHUB_RUN_NUMBER}-debug.apk"
+          fi
 
       - name: Publish pre-release
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/dev'
+        if: (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/dev') && steps.signing.outputs.configured == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
