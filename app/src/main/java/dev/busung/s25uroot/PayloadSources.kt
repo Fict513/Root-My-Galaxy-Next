@@ -38,6 +38,15 @@ data class PayloadSource(
 
     companion object {
         /**
+         * The personal fork carrying the SM-S911B/FZG1 payload branch.
+         *
+         * Kept first in [DEFAULTS] so a fresh install resolves against this catalog before the
+         * upstream ones, while still keeping both upstream catalogs configured as fallbacks.
+         */
+        const val PERSONAL_REPOSITORY = "Fict513/Root-My-Galaxy-Payloads"
+        const val PERSONAL_BRANCH = "feature/dm1q-s911b-fzg1"
+
+        /**
          * This fork's payload catalog.
          *
          * Its own rather than the upstream one, because a fresh install has to be able to see the
@@ -62,6 +71,12 @@ data class PayloadSource(
         const val LEGACY_BRANCH = "main"
 
         val COMMIT_PATTERN = Regex("^[0-9a-f]{40}$")
+
+        val PERSONAL = PayloadSource(
+            repository = PERSONAL_REPOSITORY,
+            branch = PERSONAL_BRANCH,
+            enabled = true,
+        )
 
         val DEFAULT = PayloadSource(
             repository = DEFAULT_REPOSITORY,
@@ -98,7 +113,7 @@ data class PayloadSource(
          * carries the source it came from, so the second catalog is one tap away in the picker rather
          * than the payload a plain run would load.
          */
-        val DEFAULTS: List<PayloadSource> = listOf(DEFAULT, OFFICIAL)
+        val DEFAULTS: List<PayloadSource> = listOf(PERSONAL, DEFAULT, OFFICIAL)
 
         fun isCommitValid(commit: String): Boolean = COMMIT_PATTERN.matches(commit.trim())
 

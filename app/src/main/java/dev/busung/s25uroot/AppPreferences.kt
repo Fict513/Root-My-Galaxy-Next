@@ -192,11 +192,14 @@ object AppPreferences {
      */
     private fun defaultPayloadSources(context: Context): List<PayloadSource> {
         val preferences = prefs(context)
+        val legacyRepository = preferences.getString(LEGACY_PAYLOAD_REPOSITORY, null)
+        val legacyBranch = preferences.getString(LEGACY_PAYLOAD_BRANCH, null)
+        if (legacyRepository.isNullOrBlank() && legacyBranch.isNullOrBlank()) {
+            return PayloadSource.DEFAULTS
+        }
         val chosen = PayloadSource.create(
-            repository = preferences.getString(LEGACY_PAYLOAD_REPOSITORY, null)
-                ?: PayloadSource.DEFAULT_REPOSITORY,
-            branch = preferences.getString(LEGACY_PAYLOAD_BRANCH, null)
-                ?: PayloadSource.DEFAULT_BRANCH,
+            repository = legacyRepository ?: PayloadSource.DEFAULT_REPOSITORY,
+            branch = legacyBranch ?: PayloadSource.DEFAULT_BRANCH,
         ) ?: PayloadSource.DEFAULT
         return listOf(chosen).withSourcesAdded(PayloadSource.DEFAULTS)
     }
