@@ -47,6 +47,7 @@ internal fun TargetProfile.matchesQuery(query: String): Boolean {
     return displayName.contains(needle, ignoreCase = true) ||
         models.any { it.contains(needle, ignoreCase = true) } ||
         kernelVersions.any { it.contains(needle, ignoreCase = true) } ||
+        kernelReleases.any { it.contains(needle, ignoreCase = true) } ||
         sourceLabel.contains(needle, ignoreCase = true) ||
         kernelSuVersion?.contains(needle, ignoreCase = true) == true ||
         flavor.name.contains(needle, ignoreCase = true)

@@ -79,6 +79,25 @@ class TargetProfileTest {
     }
 
     @Test
+    fun kernelReleasesRequireBothTheThreePartFamilyAndTheExactRelease() {
+        val exact = profile.copy(
+            profileId = "dm1q-S911BXXSAFZG1",
+            models = setOf("SM-S911B"),
+            kernelVersions = setOf("5.15.189"),
+            kernelReleases = setOf("5.15.189-android13-8-33413713-abS911BXXSAFZG1"),
+        )
+
+        val fzg1 = snapshot("SM-S911B", "5.15.189-android13-8-33413713-abS911BXXSAFZG1")
+        val fze1 = snapshot("SM-S911B", "5.15.189-android13-8-33413713-abS911BXXSAFZE1")
+
+        assertTrue(exact.matches(fzg1))
+        assertFalse(exact.matches(fze1))
+        assertEquals(KernelMatch.Exact, exact.kernelMatch(fzg1))
+        // Same three-part family but not a listed release: informative, but not runnable.
+        assertEquals(KernelMatch.Version, exact.kernelMatch(fze1))
+    }
+
+    @Test
     fun kernelMatchSeparatesAnExactReleaseFromAThreePartSibling() {
         val zhs = profile.copy(
             profileId = "pa2q-S9360ZHSCCZG1",
@@ -122,9 +141,8 @@ class TargetProfileTest {
 
     @Test
     fun everyProfileRunsWithTheOfficialAppsNumbers() {
-        // A profile's own policy fields are no longer read - see [TargetProfile] - so the environment is the
-        // one the official app hands over, whether the feed called a target fresh-session or not. The cached
-        // offset is the only value that varies.
+        // The payload environment is fixed to the official app's envelope, even when a profile carries
+        // route metadata for transport selection. The cached offset is the only value that varies.
         assertEquals(
             mapOf(
                 "EXPLOIT_ATTEMPTS" to "24",

@@ -26,7 +26,9 @@ class Sm911bSafzg1Test {
         profileId = "dm1q-S911BXXSAFZG1",
         displayName = "Galaxy S23 SM-S911B | Kernel 5.15.189 (S911BXXSAFZG1)",
         models = setOf("SM-S911B"),
-        kernelVersions = setOf(fzg1KernelRelease),
+        kernelVersions = setOf("5.15.189"),
+        kernelReleases = setOf(fzg1KernelRelease),
+        routePolicy = ExploitRoutePolicy(prefersShellTransport = true),
         exploit = RemoteArtifact(
             url = "https://raw.githubusercontent.com/rushiranpise/Root-My-Galaxy-Payloads/main/" +
                 "artifacts/dm1q-S911BXXSAFZG1/cve-2026-43499-app.so",
@@ -45,7 +47,9 @@ class Sm911bSafzg1Test {
     private val s916b = fzg1.copy(
         profileId = "dm2q-S916BXXSAFZG1",
         models = setOf("SM-S916B"),
-        kernelVersions = setOf("5.15.189-android13-8-33413713-abS916BXXSAFZG1"),
+        kernelVersions = setOf("5.15.189"),
+        kernelReleases = setOf("5.15.189-android13-8-33413713-abS916BXXSAFZG1"),
+        routePolicy = ExploitRoutePolicy(),
     )
 
     /** `dm3q`/`SM-S918B` is the existing, already-shipped S23 Ultra entry on the same kernel family. */
@@ -53,6 +57,8 @@ class Sm911bSafzg1Test {
         profileId = "dm3q-S918BXXSAFZF5",
         models = setOf("SM-S918B"),
         kernelVersions = setOf("5.15.189"),
+        kernelReleases = emptySet(),
+        routePolicy = ExploitRoutePolicy(),
     )
 
     private val catalog = listOf(fzg1, s916b, s918b)
@@ -77,6 +83,8 @@ class Sm911bSafzg1Test {
     @Test
     fun theRealDeviceOnItsExactTestedKernelMatches() {
         val device = snapshot("SM-S911B", "dm1q", fzg1KernelRelease)
+        assertEquals("5.15.189", device.kernelVersion)
+        assertEquals(fzg1KernelRelease, device.kernelRelease)
         assertTrue(fzg1.matches(device))
         assertEquals(KernelMatch.Exact, fzg1.kernelMatch(device))
     }
@@ -85,14 +93,19 @@ class Sm911bSafzg1Test {
     @Test
     fun theSameModelOnAnyOtherS911BKernelBuildDoesNotMatch() {
         val fze1 = snapshot("SM-S911B", "dm1q", "5.15.189-android13-8-33413713-abS911BXXSAFZE1")
-        val fzdp = snapshot("SM-S911B", "dm1q", "5.15.189-android13-8-33413713-abS911BXXU9FZDP")
+        val fzi1 = snapshot("SM-S911B", "dm1q", "5.15.189-android13-8-33413713-abS911BXXSAFZI1")
+        val normalizedOnly = snapshot("SM-S911B", "dm1q", "5.15.189")
 
         assertFalse(fzg1.matches(fze1))
-        assertFalse(fzg1.matches(fzdp))
-        assertEquals(KernelMatch.None, fzg1.kernelMatch(fze1))
-        assertEquals(KernelMatch.None, fzg1.kernelMatch(fzdp))
+        assertFalse(fzg1.matches(fzi1))
+        assertFalse(fzg1.matches(normalizedOnly))
+        // Same 3-part family, but wrong exact build.
+        assertEquals(KernelMatch.Version, fzg1.kernelMatch(fze1))
+        assertEquals(KernelMatch.Version, fzg1.kernelMatch(fzi1))
+        assertEquals(KernelMatch.Version, fzg1.kernelMatch(normalizedOnly))
         assertNull(listOf(fzg1).resolveFor(fze1))
-        assertNull(listOf(fzg1).resolveFor(fzdp))
+        assertNull(listOf(fzg1).resolveFor(fzi1))
+        assertNull(listOf(fzg1).resolveFor(normalizedOnly))
     }
 
     // 3. SM-S916B + FZG1-like kernel => does NOT select the dm1q target.
@@ -143,15 +156,37 @@ class Sm911bSafzg1Test {
 
     // 7. Correct transport policy is selected.
     @Test
-    fun noShellOnlyTransportIsForcedForThisProfile() {
-        // The feed carries no per-entry route policy (see [ExploitRoutePolicy]); every profile runs
-        // under the app's one global policy, and `prefersShellTransport` defaults to false. That is
-        // the right answer for this profile specifically: the hardware test root'd through both the
-        // app's own Shizuku-mediated run and a plain `adb shell` invocation of the same artifact, so
-        // this entry must not be the one that starts silently forcing - or silently downgrading from -
-        // a shell transport the app never declared.
-        val policy = ExploitRoutePolicy()
-        assertFalse(policy.prefersShellTransport)
+    fun shellTransportIsRequiredForThisProfile() {
+        // Hardware validation for SAFZG1 is ADB-shell based. Until app-domain execution is proven on
+        // this exact build, the feed marks this target shell-required so transport selection refuses to
+        // fall back into app-domain execution.
+        assertTrue(fzg1.routePolicy.prefersShellTransport)
+        assertEquals(
+            RunTransport.Shizuku,
+            chooseRunTransport(
+                shellRequired = true,
+                shizukuRequested = true,
+                shizukuUsable = true,
+                localAdbPaired = false,
+            ),
+        )
+        assertEquals(
+            RunTransport.LocalAdb,
+            chooseRunTransport(
+                shellRequired = true,
+                shizukuRequested = false,
+                shizukuUsable = false,
+                localAdbPaired = true,
+            ),
+        )
+        assertNull(
+            chooseRunTransport(
+                shellRequired = true,
+                shizukuRequested = false,
+                shizukuUsable = false,
+                localAdbPaired = false,
+            ),
+        )
     }
 
     // 8. Correct KernelSU flavour/version metadata is parsed.
@@ -166,6 +201,7 @@ class Sm911bSafzg1Test {
         // No "version" key was declared for this device-specific ksud build, so none should be
         // invented here; the flavour's own release stands in for display purposes.
         assertNull(target.kernelSuVersion)
+        assertTrue(target.routePolicy.prefersShellTransport)
         assertEquals(4879560L, target.kernelSu.size)
         assertEquals(
             "07302e5a79cc6c57d23a06cbb996c2f31c50c29589c03cf40278cfe43ab92639",
@@ -202,7 +238,9 @@ class Sm911bSafzg1Test {
 
         val dm1q = parsed.targets.single { it.profileId == "dm1q-S911BXXSAFZG1" }
         assertEquals(setOf("SM-S911B"), dm1q.models)
-        assertEquals(setOf(fzg1KernelRelease), dm1q.kernelVersions)
+        assertEquals(setOf("5.15.189"), dm1q.kernelVersions)
+        assertEquals(setOf(fzg1KernelRelease), dm1q.kernelReleases)
+        assertTrue(dm1q.routePolicy.prefersShellTransport)
         assertEquals(130608L, dm1q.exploit.size)
         assertEquals(
             "7b1ad03f8136e5d130e3f77c0a71a7be87ac301b07b3829e9956c5199d538b06",
@@ -240,7 +278,9 @@ class Sm911bSafzg1Test {
               "payloadId": "dm1q-S911BXXSAFZG1",
               "displayName": "Galaxy S23 SM-S911B | Kernel 5.15.189 (S911BXXSAFZG1)",
               "models": ["SM-S911B"],
-              "kernelVersions": ["5.15.189-android13-8-33413713-abS911BXXSAFZG1"],
+              "kernelVersions": ["5.15.189"],
+              "kernelReleases": ["5.15.189-android13-8-33413713-abS911BXXSAFZG1"],
+              "routePolicy": {"prefersShellTransport": true},
               "exploit": {
                 "url": "https://raw.githubusercontent.com/rushiranpise/Root-My-Galaxy-Payloads/main/artifacts/dm1q-S911BXXSAFZG1/cve-2026-43499-app.so",
                 "size": 130608,

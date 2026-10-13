@@ -63,7 +63,10 @@ internal fun bootPayloadNeedsShell(
     preferAttempted: Boolean,
     attempted: CachedPayload?,
     cached: CachedPayload?,
-): Boolean = ((if (preferAttempted) attempted else null) ?: cached) == null
+): Boolean = ((if (preferAttempted) attempted else null) ?: cached)
+    ?.routePolicy
+    ?.prefersShellTransport
+    ?: true
 
 /**
  * Whether taking back the install in front of you also takes back the retry this device has armed.

@@ -17,6 +17,7 @@ import org.junit.Test
  */
 class ArtifactPinTest {
     private val source = PayloadSource(PayloadSource.DEFAULT_REPOSITORY, PayloadSource.DEFAULT_BRANCH)
+    private val personal = PayloadSource(PayloadSource.PERSONAL_REPOSITORY, PayloadSource.PERSONAL_BRANCH)
     private val commit = "a".repeat(40)
 
     @Test
@@ -57,6 +58,33 @@ class ArtifactPinTest {
                 "https://raw.githubusercontent.com/${source.repository}/main/kernelsu/ksud-s25u-kdp",
                 commit,
             ),
+        )
+    }
+
+    @Test
+    fun personalForkSourcePinsBothExploitAndKernelSuToTheSameResolvedCommit() {
+        val exploit = pinnedArtifactUrl(
+            personal,
+            "https://raw.githubusercontent.com/rushiranpise/Root-My-Galaxy-Payloads/main/" +
+                "artifacts/dm1q-S911BXXSAFZG1/cve-2026-43499-app.so",
+            commit,
+        )
+        val kernelSu = pinnedArtifactUrl(
+            personal,
+            "https://raw.githubusercontent.com/rushiranpise/Root-My-Galaxy-Payloads/main/" +
+                "kernelsu/ksud-dm1q-S911BXXSAFZG1-kdp",
+            commit,
+        )
+
+        assertEquals(
+            "https://raw.githubusercontent.com/${personal.repository}/$commit/" +
+                "artifacts/dm1q-S911BXXSAFZG1/cve-2026-43499-app.so",
+            exploit,
+        )
+        assertEquals(
+            "https://raw.githubusercontent.com/${personal.repository}/$commit/" +
+                "kernelsu/ksud-dm1q-S911BXXSAFZG1-kdp",
+            kernelSu,
         )
     }
 

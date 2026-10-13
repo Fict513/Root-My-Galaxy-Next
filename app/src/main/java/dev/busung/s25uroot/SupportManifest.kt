@@ -44,17 +44,21 @@ data class TargetProfile(
     val models: Set<String>,
     val kernelVersions: Set<String>,
     /**
-     * The two fields the official app has no counterpart for, and which are deliberately gone from here.
+     * Exact `uname -r` releases this profile documents, when the feed declares them.
      *
-     * A feed entry used to be able to say `requiresFreshP0Session` (one attempt, no attempt budget at all)
-     * and to carry a `routePolicy` (attempts, both timeouts, whether the cached slide offset may be handed
-     * over, and the slide route and p0 window the payload is told to use). The official app reads neither,
-     * because its feed has neither - so a value from either one is a value the payload was never validated
-     * with, arriving on the one path where the difference is a run that dies instead of rooting.
-     *
-     * What is handed over now is what the official app hands over: [ExploitRoutePolicy.LEGACY]'
-     * numbers, spelled in [InstallViewModel]'s companion, and the cached offset when this boot has one.
+     * Optional for backward compatibility: older entries listed only [kernelVersions], and those
+     * continue to match the same way. When this is present, matching requires both a listed
+     * [kernelVersions] family and one of these exact releases.
      */
+    val kernelReleases: Set<String> = emptySet(),
+    /**
+     * How this target wants to run.
+     *
+     * Absent means [ExploitRoutePolicy.LEGACY], which keeps older feeds unchanged. This project uses
+     * it conservatively: when a payload is only verified from a shell domain, the feed can mark that
+     * via `prefersShellTransport=true` so a run never falls back into app-domain execution.
+     */
+    val routePolicy: ExploitRoutePolicy = ExploitRoutePolicy.LEGACY,
     val exploit: RemoteArtifact,
     val kernelSu: RemoteArtifact,
     /**
@@ -100,16 +104,25 @@ data class TargetProfile(
         models.any { it.equals(snapshot.model, ignoreCase = true) }
 
     /**
-     * Whether this entry covers the device's kernel, in either form a source may declare it.
+     * Whether this entry covers the device's kernel.
      *
-     * The feed writes the leading three-part `uname -r` value, and an entry may additionally list a
-     * full release to say which exact build it documents. Both are a match here because both are a
-     * match everywhere else: [resolveFor] and [kernelMatch] already read a listed full release as
-     * coverage, so an entry that declared only that used to be selected by neither and refused by
-     * this - a payload a source offers, and a device told nothing covers it.
+     * Backward compatibility is field-based:
+     * - entries without [kernelReleases] keep legacy behavior (`kernelVersion` OR full release listed in
+     *   [kernelVersions]);
+     * - entries with [kernelReleases] require BOTH a listed [kernelVersions] family and an exact listed
+     *   release.
      */
-    fun matchesKernelVersion(snapshot: DeviceSnapshot): Boolean =
-        snapshot.kernelVersion in kernelVersions || snapshot.kernelRelease in kernelVersions
+    fun matchesKernelVersion(snapshot: DeviceSnapshot): Boolean = when {
+        kernelReleases.isNotEmpty() ->
+            snapshot.kernelVersion in kernelVersions && snapshot.kernelRelease in kernelReleases
+        else -> snapshot.kernelVersion in kernelVersions || snapshot.kernelRelease in kernelVersions
+    }
+
+    /** Whether this entry names the device's exact full kernel release. */
+    fun matchesKernelRelease(snapshot: DeviceSnapshot): Boolean = when {
+        kernelReleases.isNotEmpty() -> snapshot.kernelRelease in kernelReleases
+        else -> snapshot.kernelRelease in kernelVersions
+    }
 
     fun matches(snapshot: DeviceSnapshot): Boolean =
         matchesDevice(snapshot) && matchesKernelVersion(snapshot)
@@ -122,7 +135,11 @@ data class TargetProfile(
         get() = models.joinToString()
 
     val supportedKernelVersions: String
-        get() = kernelVersions.joinToString()
+        get() = if (kernelReleases.isEmpty()) {
+            kernelVersions.joinToString()
+        } else {
+            (kernelVersions + kernelReleases).joinToString()
+        }
 }
 
 /**
@@ -144,9 +161,9 @@ fun List<TargetProfile>.resolveFor(
 ): TargetProfile? {
     val matching = filter { it.matches(snapshot) }
     val preferred = matching.filter { it.flavor == flavor }
-    return preferred.firstOrNull { snapshot.kernelRelease in it.kernelVersions }
+    return preferred.firstOrNull { it.matchesKernelRelease(snapshot) }
         ?: preferred.firstOrNull()
-        ?: matching.firstOrNull { snapshot.kernelRelease in it.kernelVersions }
+        ?: matching.firstOrNull { it.matchesKernelRelease(snapshot) }
         ?: matching.firstOrNull()
 }
 
@@ -169,7 +186,7 @@ enum class KernelMatch {
 }
 
 fun TargetProfile.kernelMatch(snapshot: DeviceSnapshot): KernelMatch = when {
-    snapshot.kernelRelease in kernelVersions -> KernelMatch.Exact
+    matchesKernelRelease(snapshot) -> KernelMatch.Exact
     snapshot.kernelVersion in kernelVersions -> KernelMatch.Version
     else -> KernelMatch.None
 }
@@ -225,6 +242,9 @@ data class SupportManifest(
                             displayName = payload.getString("displayName"),
                             models = payload.getJSONArray("models").strings(),
                             kernelVersions = payload.getJSONArray("kernelVersions").strings(),
+                            kernelReleases = payload.optJSONArray("kernelReleases")?.strings()
+                                ?: emptySet(),
+                            routePolicy = ExploitRoutePolicy.parse(payload.optJSONObject("routePolicy")),
                             exploit = exploit.artifact(),
                             kernelSu = kernelSu.artifact(),
                             kernelSuVersion = kernelSu.declaredVersion(),
@@ -288,8 +308,9 @@ internal fun JSONObject.declaredVersion(): String? {
  * What a catalog offers, summarised so a source can be judged before it is saved rather than
  * discovered to be useless by a failed run.
  *
- * [models] and [kernelVersions] are the union across every payload, sorted, because the question a
- * source has to answer is what it covers, not which payload happens to be listed first.
+ * [models] and [kernelVersions] are the union across every payload, sorted. Kernel entries include
+ * both three-part families and any exact releases declared through `kernelReleases`, because the
+ * question a source has to answer is what it covers, not which payload happens to be listed first.
  */
 data class SourceCoverage(
     /** Revision the catalog was read at, so a summary is tied to the revision that produced it. */
@@ -314,7 +335,7 @@ fun SupportManifest.coverageFor(snapshot: DeviceSnapshot, commit: String): Sourc
         commit = commit,
         payloadCount = targets.size,
         models = targets.flatMap { it.models }.distinct().sorted(),
-        kernelVersions = targets.flatMap { it.kernelVersions }.distinct().sorted(),
+        kernelVersions = targets.flatMap { it.kernelVersions + it.kernelReleases }.distinct().sorted(),
         deviceProfileId = targets.resolveFor(snapshot)?.profileId,
         deviceProfileCount = targets.count { it.matches(snapshot) },
     )

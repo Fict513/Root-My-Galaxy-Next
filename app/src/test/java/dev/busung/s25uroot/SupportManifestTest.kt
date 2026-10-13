@@ -69,14 +69,41 @@ class SupportManifestTest {
     fun ignoresThePolicyFieldsTheOfficialAppHasNoCounterpartFor() {
         val parsed = SupportManifest.parse(manifest)
 
-        // The fixture still declares `requiresFreshP0Session` (and a route policy elsewhere in this file's
-        // feeds), and neither is read: the official app has no such fields, so acting on them would put a
-        // payload on numbers it was never validated with - one attempt with no budget at all, or a slide
-        // route of a feed's choosing. What is left is the size escape hatch, which is not a policy.
+        // The fixture still declares `requiresFreshP0Session`, which this build intentionally ignores:
+        // one source field cannot be allowed to force one-attempt behavior over the app's own run plan.
+        // What is left is the size escape hatch, which is not a policy.
         assertFalse(parsed.targets[1].exploit.verifySize)
 
         // And the default stays strict for a payload that does not ask otherwise.
         assertTrue(parsed.targets[1].kernelSu.verifySize)
+    }
+
+    @Test
+    fun readsOptionalKernelReleasesAndRoutePolicyWhenDeclared() {
+        val parsed = SupportManifest.parse(
+            """
+            {"schemaVersion":3,"payloads":[
+              {
+                "payloadId":"dm1q-S911BXXSAFZG1",
+                "displayName":"Galaxy S23 SM-S911B | Kernel 5.15.189 (S911BXXSAFZG1)",
+                "models":["SM-S911B"],
+                "kernelVersions":["5.15.189"],
+                "kernelReleases":["5.15.189-android13-8-33413713-abS911BXXSAFZG1"],
+                "routePolicy":{"prefersShellTransport":true},
+                "exploit":{"url":"https://example.invalid/exploit.so","size":4096},
+                "kernelsu":{"url":"https://example.invalid/ksud","size":8192}
+              }
+            ]}
+            """.trimIndent().toByteArray(),
+        )
+
+        val target = parsed.targets.single()
+        assertEquals(setOf("5.15.189"), target.kernelVersions)
+        assertEquals(
+            setOf("5.15.189-android13-8-33413713-abS911BXXSAFZG1"),
+            target.kernelReleases,
+        )
+        assertTrue(target.routePolicy.prefersShellTransport)
     }
 
     @Test

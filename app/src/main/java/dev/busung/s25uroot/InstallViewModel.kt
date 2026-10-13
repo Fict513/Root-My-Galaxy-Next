@@ -1246,14 +1246,9 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
                     selectionId == null -> repository.resolveTarget(DeviceSnapshot.current())
                     else -> repository.resolveTarget(selectionId)
                 }
-                // Frozen with the profile, for the whole run, and resolved in one place: the payload's
-                // own numbers unless the user opted to override them, with the fresh-session rule on
-                // top. The run-plan screen calls the same function with the same stored settings, so
-                // what this run enforces is what that screen said it would.
-                // One policy for every profile, which is what the official app runs every profile with: a
-                // feed entry's own policy and fresh-session flag are no longer read (see [TargetProfile]),
-                // and the exploit override is no longer applied (see [ExploitOverride.resolve]).
-                val routePolicy = ExploitOverride.resolve(ExploitRoutePolicy.LEGACY)
+                // Frozen with the profile for the whole run, and resolved in one place: when a feed
+                // marks a target shell-required, transport selection must not drift mid-run.
+                val routePolicy = ExploitOverride.resolve(profile.routePolicy)
                 // Said before anything is attempted, because the flavour is a property of the entry
                 // that was chosen and not of the app's setting: a catalog that carries only the other
                 // project's payloads serves that one, and the log is where that becomes visible.

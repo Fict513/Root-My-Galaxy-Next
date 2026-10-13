@@ -54,10 +54,10 @@ internal data class CachedPayload(
     val displayName: String,
     val models: List<String>,
     val kernelVersions: List<String>,
-    // The feed's policy and fresh-session fields are deliberately not carried: see [TargetProfile]. A cache
-    // written before that had them still opens - the reads below ignore the keys rather than requiring them.
+    val kernelReleases: List<String> = emptyList(),
     val exploit: RemoteArtifact,
     val kernelSu: RemoteArtifact,
+    val routePolicy: ExploitRoutePolicy = ExploitRoutePolicy.LEGACY,
     /**
      * Which KernelSU this entry's daemon and module belong to, carried so a cached run stays the one
      * the user chose.
@@ -89,8 +89,10 @@ internal data class CachedPayload(
         put("displayName", displayName)
         put("models", JSONArray(models))
         put("kernelVersions", JSONArray(kernelVersions))
+        if (kernelReleases.isNotEmpty()) put("kernelReleases", JSONArray(kernelReleases))
         put("exploit", exploit.toJson())
         put("kernelSu", kernelSu.toJson())
+        put("routePolicy", routePolicy.toJsonObject())
         put("flavor", flavor.id)
         kernelSuVersion?.let { put("kernelSuVersion", it) }
         put("sourceId", sourceId)
@@ -106,6 +108,8 @@ internal data class CachedPayload(
         displayName = displayName,
         models = models.toSet(),
         kernelVersions = kernelVersions.toSet(),
+        kernelReleases = kernelReleases.toSet(),
+        routePolicy = routePolicy,
         exploit = exploit,
         kernelSu = kernelSu,
         flavor = flavor,
@@ -124,8 +128,10 @@ internal data class CachedPayload(
                 displayName = json.getString("displayName"),
                 models = json.getJSONArray("models").strings(),
                 kernelVersions = json.getJSONArray("kernelVersions").strings(),
+                kernelReleases = json.optJSONArray("kernelReleases")?.strings() ?: emptyList(),
                 exploit = json.getJSONObject("exploit").artifact(),
                 kernelSu = json.getJSONObject("kernelSu").artifact(),
+                routePolicy = ExploitRoutePolicy.parse(json.optJSONObject("routePolicy")),
                 // Absent in a cache written before flavours and source identity were recorded, which is
                 // why each read falls back instead of requiring the key: the payload itself is still
                 // usable, and the entry it rebuilds is the same one an older build would have run.
@@ -187,6 +193,8 @@ internal fun cacheRejectionReason(
         "The cached payload does not list this model"
     snapshot.kernelVersion !in cached.kernelVersions ->
         "The cached payload does not list this kernel version"
+    cached.kernelReleases.isNotEmpty() && snapshot.kernelRelease !in cached.kernelReleases ->
+        "The cached payload does not list this exact kernel release"
     else -> null
 }
 
@@ -319,8 +327,10 @@ internal object KnownGoodPayloadStore {
             displayName = profile.displayName,
             models = profile.models.toList(),
             kernelVersions = profile.kernelVersions.toList(),
+            kernelReleases = profile.kernelReleases.toList(),
             exploit = profile.exploit,
             kernelSu = profile.kernelSu,
+            routePolicy = profile.routePolicy,
             flavor = profile.flavor,
             kernelSuVersion = profile.kernelSuVersion,
             sourceId = profile.sourceId,

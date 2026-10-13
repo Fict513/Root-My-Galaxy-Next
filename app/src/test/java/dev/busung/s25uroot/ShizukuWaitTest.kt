@@ -160,9 +160,8 @@ class ShizukuWaitTest {
 
     @Test
     fun `a payload that is there needs no shell of its own`() {
-        // The feed's own field for this went with the rest of its policy: the official app has no such field,
-        // so nothing here asks for a shell a profile wanted. Which of the two descriptors answers is still
-        // the caller's rule, and this is it.
+        // Cached/attempted payload descriptors carry the route policy now; this fixture payload leaves
+        // `prefersShellTransport` at its default false, so the answer is still "no shell required".
         assertFalse(bootPayloadNeedsShell(preferAttempted = true, attempted = payload(), cached = null))
         assertFalse(bootPayloadNeedsShell(preferAttempted = false, attempted = null, cached = payload()))
     }
