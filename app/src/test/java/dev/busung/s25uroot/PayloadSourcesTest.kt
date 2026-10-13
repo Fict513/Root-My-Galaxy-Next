@@ -7,28 +7,37 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PayloadSourcesTest {
+    private val personal = PayloadSource.PERSONAL
     private val ours = PayloadSource.DEFAULT
     private val official = PayloadSource.OFFICIAL
     private val community = PayloadSource("example-org/payloads", "testing", enabled = false)
 
     @Test
-    fun defaultSourceIsUsable() {
+    fun personalSourceIsUsable() {
+        assertTrue(personal.enabled)
+        assertEquals("Fict513/Root-My-Galaxy-Payloads@feature/dm1q-s911b-fzg1", personal.id)
+    }
+
+    @Test
+    fun upstreamDefaultSourceIsUsable() {
         assertTrue(ours.enabled)
         assertEquals("rushiranpise/Root-My-Galaxy-Payloads@main", ours.id)
     }
 
     @Test
-    fun aDeviceStartsFromBothCatalogs() {
-        // The official catalog is a default rather than something to be typed in: every artifact in this
-        // fork's feed was copied out of it, and it still publishes the targets this fork has not rebuilt,
-        // so a list that started with one of the two would have no way to reach the other at all.
-        assertEquals(listOf(ours, official), PayloadSource.DEFAULTS)
+    fun aDeviceStartsFromAllThreeCatalogsWithPersonalFirst() {
+        // The personal branch is first so automatic resolution prefers the user-curated feed, while both
+        // upstream catalogs stay present as one-tap fallbacks for entries that branch does not carry yet.
+        assertEquals(listOf(personal, ours, official), PayloadSource.DEFAULTS)
+        assertEquals(3, PayloadSource.DEFAULTS.size)
+        assertEquals(personal.id, PayloadSource.DEFAULTS.first().id)
+        assertTrue(ours.enabled)
         assertTrue(official.enabled)
         assertEquals(PayloadSource.LEGACY_REPOSITORY, official.repository)
         assertEquals(PayloadSource.LEGACY_BRANCH, official.branch)
-        // Two different catalogs, not one entry written twice: the ids are what a saved list, a pin and a
-        // selection are keyed by, so equal ids would mean the second source silently replacing the first.
-        assertEquals(2, PayloadSource.DEFAULTS.map { it.id }.distinct().size)
+        // Three different catalogs, not one entry written three times: the ids are what a saved list, a
+        // pin and a selection are keyed by, so equal ids would mean silent replacement.
+        assertEquals(3, PayloadSource.DEFAULTS.map { it.id }.distinct().size)
     }
 
     @Test
@@ -37,8 +46,8 @@ class PayloadSourcesTest {
         // that kept this fork's feed and dropped the official one must not be handed a duplicate of the
         // feed it still has.
         assertEquals(
-            listOf(ours, community, official),
-            listOf(ours, community).withSourcesAdded(PayloadSource.DEFAULTS),
+            listOf(personal, community, ours, official),
+            listOf(personal, community).withSourcesAdded(PayloadSource.DEFAULTS),
         )
         assertEquals(PayloadSource.DEFAULTS, emptyList<PayloadSource>().withSourcesAdded(PayloadSource.DEFAULTS))
         assertEquals(
