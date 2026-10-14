@@ -166,12 +166,12 @@ class KernelSuManagerTest {
     @Test
     fun `the offered release is the flavour's own default until one is named`() {
         assertEquals(
-            "KernelSU_Next_v3.4.1_33333-release.apk",
+            "KernelSU_Next_v3.4.2_33355-release.apk",
             KernelSuFlavor.KernelSuNext.defaultManagerRelease.assetName,
         )
         assertEquals(
-            "https://github.com/KernelSU-Next/KernelSU-Next/releases/download/v3.4.1/" +
-                "KernelSU_Next_v3.4.1_33333-release.apk",
+            "https://github.com/KernelSU-Next/KernelSU-Next/releases/download/v3.4.2/" +
+                "KernelSU_Next_v3.4.2_33355-release.apk",
             KernelSuFlavor.KernelSuNext.defaultManagerRelease.url,
         )
     }

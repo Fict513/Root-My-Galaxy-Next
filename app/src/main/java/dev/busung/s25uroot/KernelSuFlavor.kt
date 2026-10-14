@@ -34,8 +34,8 @@ enum class KernelSuFlavor(
      * builds from rather than the newest that exists - it is the manager for the daemon this project's
      * payloads stage when the feed is silent about which KernelSU that is.
      *
-     * The three are not the same number: this project's KernelSU-Next payload pins 3.4.1, KernelSU is
-     * still 3.3.0, which is the newest release tiann/KernelSU has published, and BakaSU's - the flavour
+     * The three are not the same number: this project's KernelSU payloads are built from 3.3.1, the
+     * newest release tiann/KernelSU has published, KernelSU-Next's pins 3.4.2, and BakaSU's - the flavour
      * this app still calls `resukisu`, because that is the id its feed entries and preferences use - is
      * the pre-release its own payload was built against.
      *
@@ -71,8 +71,8 @@ enum class KernelSuFlavor(
         label = "KernelSU",
         managerPackage = "me.weishu.kernelsu",
         repository = "tiann/KernelSU",
-        defaultManagerVersion = "3.3.0",
-        defaultManagerAsset = "KernelSU_v3.3.0_32601-release.apk",
+        defaultManagerVersion = "3.3.1",
+        defaultManagerAsset = "KernelSU_v3.3.1_32680-release.apk",
         summaryRes = R.string.flavor_kernelsu_summary,
     ),
     KernelSuNext(
@@ -80,8 +80,8 @@ enum class KernelSuFlavor(
         label = "KernelSU-Next",
         managerPackage = "com.rifsxd.ksunext",
         repository = "KernelSU-Next/KernelSU-Next",
-        defaultManagerVersion = "3.4.1",
-        defaultManagerAsset = "KernelSU_Next_v3.4.1_33333-release.apk",
+        defaultManagerVersion = "3.4.2",
+        defaultManagerAsset = "KernelSU_Next_v3.4.2_33355-release.apk",
         summaryRes = R.string.flavor_kernelsu_next_summary,
     ),
     ReSukiSU(
