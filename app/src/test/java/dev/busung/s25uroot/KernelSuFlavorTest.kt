@@ -75,10 +75,10 @@ class KernelSuFlavorTest {
         assertEquals("com.rifsxd.ksunext", KernelSuFlavor.KernelSuNext.managerPackage)
         // Each flavour offers the KernelSU this project's payloads for it are built from, so the daemon
         // a run stages and the manager that talks to it come from the same release. The two are not the
-        // same number: KernelSU's payloads are built from 3.3.1 and the KernelSU-Next ones from 3.4.1.
+        // same number: KernelSU's payloads are built from 3.3.1 and the KernelSU-Next ones from 3.4.2.
         // Nothing rejects a manager installed by hand in their place.
         assertEquals("3.3.1", KernelSuFlavor.KernelSu.defaultManagerVersion)
-        assertEquals("3.4.1", KernelSuFlavor.KernelSuNext.defaultManagerVersion)
+        assertEquals("3.4.2", KernelSuFlavor.KernelSuNext.defaultManagerVersion)
         assertEquals(
             "https://github.com/tiann/KernelSU/releases/download/v3.3.1/" +
                 "KernelSU_v3.3.1_32680-release.apk",

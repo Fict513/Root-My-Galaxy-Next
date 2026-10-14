@@ -35,7 +35,7 @@ enum class KernelSuFlavor(
      * payloads stage when the feed is silent about which KernelSU that is.
      *
      * The three are not the same number: this project's KernelSU payloads are built from 3.3.1, the
-     * newest release tiann/KernelSU has published, KernelSU-Next's pins 3.4.1, and BakaSU's - the flavour
+     * newest release tiann/KernelSU has published, KernelSU-Next's pins 3.4.2, and BakaSU's - the flavour
      * this app still calls `resukisu`, because that is the id its feed entries and preferences use - is
      * the pre-release its own payload was built against.
      *
@@ -80,8 +80,8 @@ enum class KernelSuFlavor(
         label = "KernelSU-Next",
         managerPackage = "com.rifsxd.ksunext",
         repository = "KernelSU-Next/KernelSU-Next",
-        defaultManagerVersion = "3.4.1",
-        defaultManagerAsset = "KernelSU_Next_v3.4.1_33333-release.apk",
+        defaultManagerVersion = "3.4.2",
+        defaultManagerAsset = "KernelSU_Next_v3.4.2_33355-release.apk",
         summaryRes = R.string.flavor_kernelsu_next_summary,
     ),
     ReSukiSU(
